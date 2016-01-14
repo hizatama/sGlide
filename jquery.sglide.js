@@ -235,7 +235,9 @@ version:	2.1.2
 				var THE_VALUE		= valueObj[guid] = settings.startAt,
 					result			= 0,
 					vert			= settings.vertical,
-					markers			= (settings.snap.points > 0 && settings.snap.points <= 9 && settings.snap.marks),
+					multiPoints		= typeof settings.snap.points == 'object' && settings.snap.points.length > 0,
+					validPoints		= multiPoints || (settings.snap.points > 0 && settings.snap.points <= 9),
+					markers			= validPoints && settings.snap.marks,
 					snapType		= (settings.snap.type != 'hard' && settings.snap.type != 'soft') ? false : settings.snap.type,
 					knob_bg			= '#333',
 					knob_width		= (settings.showKnob && !settings.disabled ? '2%' : '0'),
@@ -251,7 +253,7 @@ version:	2.1.2
 					customRange		= (settings.totalRange[0] !== 0 || settings.totalRange[1] !== 0) && settings.totalRange[0] < settings.totalRange[1],
 					retina			= (window.devicePixelRatio > 1) && settings.retina;
 
-				helpers[guid+'-buttons']		= settings.buttons;
+				helpers[guid+'-buttons']		= multiPoints ? false : settings.buttons;
 				helpers[guid+'-colorChange']	= colorChangeBln;
 
 				//------------------------------------------------------------------------------------------------------------------------------------
@@ -411,27 +413,42 @@ version:	2.1.2
 
 				// snap to
 				var snapping_on = false;
-				var snaps = Math.round(settings.snap.points);
-				var snapPctValues = [0];
+				var snapPoints = (typeof settings.snap.points == 'object') ? settings.snap.points : false;
+				var snaps = snapPoints ? 100 : Math.round(settings.snap.points);
+				var snapPctValues = snapPoints ? [] : [0];
 				var drawSnapmarks = function(resize){
 					if (snaps === 1) snaps = 2;
 				
 					// pixels
 					var kw = knob.width();
 					var w = self_width - kw;
-					var increment = w / (snaps - 1);
-					var snapValues = [0];
-					var step = increment;
-					while (step <= w+2){	// added 2px to fix glitch when drawing last mark at 7 or 8 snaps (accounts for decimal)
-						snapValues.push(step);
-						step += increment;
-					}
-					// percentage
-					increment = 100 / (snaps - 1);
-					step = increment;
-					while (step <= 101){	// added 1% to fix glitch when drawing last mark at 7 or 8 snaps (accounts for decimal)
-						snapPctValues.push(step);
-						step += increment;
+					var snapValues = snapPoints ? [] : [0];
+					if(snapPoints.length > 0){
+						for (var i =0; i < snapPoints.length; i++) {
+							if(settings.unit == '%'){
+								snapValues.push(w*snapPoints[i]/100);
+								snapPctValues.push(snapPoints[i]);
+							}else{
+								var s = settings.totalRange[0],
+									e = settings.totalRange[1]-s;
+								snapValues.push(w*(snapPoints[i]-s)/e);
+								snapPctValues.push((snapPoints[i]-s)/e*100);
+							}
+						};
+					}else{
+						var increment = w / (snaps - 1);
+						var step = increment;
+						while (step <= w+2){	// added 2px to fix glitch when drawing last mark at 7 or 8 snaps (accounts for decimal)
+							snapValues.push(step);
+							step += increment;
+						}
+						// percentage
+						increment = 100 / (snaps - 1);
+						step = increment;
+						while (step <= 101){	// added 1% to fix glitch when drawing last mark at 7 or 8 snaps (accounts for decimal)
+							snapPctValues.push(step);
+							step += increment;
+						}
 					}
 
 					snapping_on = true;
@@ -470,7 +487,7 @@ version:	2.1.2
 
 				// vertical
 				var verticalTransform = function(){
-					if (markers && snaps > 0 && snaps < 10){
+					if (markers && snaps > 0){
 						var a = $('#'+guid+', #'+guid+'_markers');
 
 						a.wrapAll('<div id="'+guid+'_vert-marks" style="margin:0; z-index:997; width:'+width+unit+
@@ -586,7 +603,7 @@ version:	2.1.2
 					btn_is_down = false;
 					clearTimeout(btn_timers);
 				}, knob_adjust = 0, btn_is_down = false, btn_timers = null;
-				var btn_snap = (settings.snap.points > 0 && settings.snap.points <= 9 && (snapType == 'hard' || snapType == 'soft'));
+				var btn_snap = (validPoints && (snapType == 'hard' || snapType == 'soft'));
 
 				//------------------------------------------------------------------------------------------------------------------------------------
 				// events
@@ -604,9 +621,9 @@ version:	2.1.2
 				// snapping
 				var storedSnapValue = 's-1';
 				var doSnap = function(kind, m){
-					if (snaps > 0 && snaps < 10){	// min 1, max 9
+					if (snaps > 0){	// min 1, max 9
 						var knobWidth = knob.width(),
-							pctFive = self_width * (10-snaps) / 100 - 2;
+							pctFive = self_width * (100-snaps) / 100 - 2;
 
 						// % to px
 						var snapPixelValues = [];
@@ -619,7 +636,7 @@ version:	2.1.2
 						var closest = null, pctVal = 0;
 						$.each(snapPixelValues, function(i){
 							if (closest === null || Math.abs(this - m) < Math.abs(closest - m)){
-								closest = this | 0;
+								closest = 0+this;
 								pctVal = snapPctValues[i];
 							}
 						});
@@ -787,7 +804,7 @@ version:	2.1.2
 							m			= x - stopper;	// true position of knob
 
 						// snap to
-						if (snaps > 0 && snaps < 10 && (snapType == 'soft' || snapType == 'hard'))	// min 1, max 9
+						if (snaps > 0 && (snapType == 'soft' || snapType == 'hard'))	// min 1, max 9
 							result = doSnap((snapType == 'hard') ? 'hard' : 'soft', m);
 						else
 							result = (m < 0 ? 0 : m);
@@ -907,7 +924,7 @@ version:	2.1.2
 					var rlt = updateME({'percent':num});
 
 					// inits
-					if (snaps > 0 && snaps < 10)	drawSnapmarks();
+					if (snaps > 0)					drawSnapmarks();
 					if (vert)						verticalTransform();
 					if (helpers[guid+'-buttons'])	drawButtons();
 					if (colorChangeBln)				colorShiftInit();

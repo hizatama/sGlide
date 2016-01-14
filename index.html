@@ -65,37 +65,65 @@
 
 		console.log('sglideArr',sglideArr);*/
 
+		var currentValue = 4000,
+			minVal = 0,
+			maxVal = 10000,
+			rangePct   = [10,  40,  70,  80,  90  ],
+			rangePxl   = [1000,4000,7000,8000,9000],
+			virtualPxl = [1000,2000,3000,5000,7000];
+
 		$('.slider_bar').sGlide({
-			'startAt': 50,
+			'startAt': 40, // %
 			'width': 600,
 			'height': 22,
 			'unit': 'px',
 			// 'image': 'img/knob_.png',
 			// 'pill': false,
-			'totalRange': [58,102],
+			'totalRange': [minVal, maxVal],
 			// 'locked': true,
 			'snap': {
 				'marks': true,
 				'type': 'soft',
-				'points': 3
+				'points': rangePxl // %
 			},
 			'colorShift': ['#3a4d31', '#7bb560'],
 			// 'vertical': true,
-			'buttons': true,
+			'buttons': false,
 			// 'disabled': true,
 			// drag: function(o){
 			// 	console.log('> drag',o);//,o.id,o);
 			// },
 			onButton: function(o){
 				console.log('> onButton',o);//,o.id,o);
-			}
+			},
+			drag: function(o){
+				var val = false;
+				for(var p in rangePct){
+					val = (Math.round(o.custom/100)*100 == rangePxl[p]) ? virtualPxl[p] : false;
+					if(val && val != currentValue){
+						currentValue = val;
+						console.log('> drag',o);
+						document.getElementById('percent').innerHTML = val;
+						return;
+					}
+				}
+			},
+			drop: function(o){
+				console.log('> drop',o);
+				// console.log(o.id,o.value, this.element);
+
+				if(o.custom != currentValue){
+					currentValue = o.custom;
+				}
+				document.getElementById('percent').innerHTML = o.custom;
+			},
 		});
 	};
 </script>
 
 </head><body onload="run()">
 
-	<div id="percent">%</div>
+	<div id="percent">2000</div>
 	<div id="slider1" class="slider_bar" data-keys="shift" style="background-color:#069; border-radius:10px; height:40px"></div><br /><!-- <div id="slider2" class="slider_bar"></div> -->
 	<br><input type="text" value="asdljkas dlkajsd lakjs dlasjd">
 
